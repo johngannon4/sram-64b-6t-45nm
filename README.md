@@ -6,16 +6,18 @@
 
 A complete, fully synchronous 64-bit (16 × 4) SRAM built from standard 6T cells and hand-designed peripheral circuits: non-overlapping clock generator, dynamic row decoder, precharge, write drivers, and read circuitry. Two versions were designed and compared:
 
-1. **Baseline:** conventional full-VDD bitline precharge with tri-state read buffers.
-2. **Optimized:** VDD/2 bitline precharge, OTA-based differential sense amplifiers, and minimum-sized cells.
+1. **Baseline:** full-VDD bitline precharge, tri-state read buffers, and conservatively sized cells.
+2. **Alternate:** VDD/2 bitline precharge, OTA-based differential sense amplifiers, and minimum-sized cells.
 
-The optimized design improves the figure of merit (FOM = Area × Power × Delay) by **~3.2×**, driven by a 73% reduction in cell-array area that the VDD/2 precharge makes possible.
+Both designs pass full functional verification across all 16 rows. The alternate design scores better on the figure of merit (FOM = Area × Power × Delay), but most of that difference comes from the smaller cell sizing rather than the new peripheral circuits. See [Limitations](#limitations).
 
 | Design    | Array area (μm²) | Power (mW) | Min. clock period (ps) | FOM (μm²·mW·ps) |
 | --------- | ---------------- | ---------- | ---------------------- | --------------- |
 | Baseline  | 7.60             | 0.713      | 250                    | 1355            |
-| Optimized | 2.07             | 0.805      | 255                    | 425             |
-| Change    | −73%             | +13%       | +2%                    | **−69% (3.2×)** |
+| Alternate | 2.07             | 0.805      | 255                    | 425             |
+| Change    | −73%             | +13%       | +2%                    | −69%            |
+
+*Area covers the cell array only; peripheral circuits are excluded.*
 
 The full project report is in [`Gannon_Sander_Final_Project.pdf`](Gannon_Sander_Final_Project.pdf).
 
@@ -99,16 +101,16 @@ confirming that only one word line is active during CLK high, all word lines are
 
 ---
 
-## Optimized design
+## Alternate design
 
-Three changes, each enabling the next:
+Three changes from the baseline:
 
-1. **VDD/2 bitline precharge:** smaller bitline swing and less read-disturb stress on the cell.
+1. **VDD/2 bitline precharge:** smaller bitline swing, intended to reduce read-disturb stress on the cell.
 2. **OTA-based differential sense amplifier:** amplifies a small BL/BLB difference to a full logic level.
-3. **Minimum-sized 6T cells:** made safe by the reduced read disturb from (1).
+3. **Minimum-sized 6T cells:** all six transistors at minimum width.
 
-![Optimized SRAM array](images/optimized-array-overview.png)
-*Optimized array with VDD/2 precharge, sense amplifiers, and minimum-sized cells.*
+![Alternate SRAM array](images/optimized-array-overview.png)
+*Alternate array with VDD/2 precharge, sense amplifiers, and minimum-sized cells.*
 
 ### VDD/2 precharge
 A diode-connected PMOS/NMOS stack generates a mid-rail reference (~0.685 V), buffered by an inverter and applied to the bitlines through NMOS pass devices on CLKB.
@@ -120,23 +122,23 @@ A diode-connected PMOS/NMOS stack generates a mid-rail reference (~0.685 V), buf
 ![VDD/2 precharge connected to the bitlines](images/optimized-precharge-connection.png)
 *Precharge module on each bitline pair, controlled by CLKB.*
 
-Because the bitlines sit at mid-rail rather than VDD, the storage nodes see a smaller voltage difference when the word line opens, reducing read-disturb risk. The write driver still applies full differential swing, so writeability is unaffected.
+The design intent: with the bitlines at mid-rail rather than VDD, the storage nodes see a smaller voltage difference when the word line opens, which should reduce read-disturb risk. The write driver still applies full differential swing for writes.
 
 ### OTA sense amplifier
 An NMOS differential pair on BL/BLB with PMOS active loads gives a single-ended output; the tail current source is gated by Read Enable, so the amplifier draws no static current when not reading. Differential sensing also rejects common-mode noise on the bitlines.
 
 ![OTA sense amplifier schematic](images/sense-amp-schematic.png)
 
-![Optimized read/write circuitry](images/optimized-read-write-circuitry.png)
+![Alternate read/write circuitry](images/optimized-read-write-circuitry.png)
 *Per-column read/write circuitry: the sense amplifier replaces the tri-state buffers.*
 
 ### Minimum-sized cells
-All six cell transistors reduced to minimum width (120 nm), taking array area from 7.60 μm² to 2.07 μm² (−73%).
+All six cell transistors reduced to minimum width (120 nm), taking array area from 7.60 μm² to 2.07 μm² (−73%). This sizing change accounts for the area reduction.
 
 ### Functional verification
 Same test sequence as the baseline. Bitlines precharge to ~0.685 V, all reads and writes complete correctly with minimum-sized cells, and the sense amplifiers produce clean full-swing outputs.
 
-![Optimized array functional test waveform](images/optimized-array-waveform.png)
+![Alternate array functional test waveform](images/optimized-array-waveform.png)
 
 ---
 
@@ -154,19 +156,19 @@ Same test sequence as the baseline. Bitlines precharge to ~0.685 V, all reads an
 | Design    | WAHL (ps) | WALH (ps) | RA0 (ps) | RA1 (ps) | Worst access (ps) |
 | --------- | --------- | --------- | -------- | -------- | ----------------- |
 | Baseline  | 78.4      | 148.0     | 89.5     | 54.7     | 148.0             |
-| Optimized | 81.7      | 134.4     | 57.2     | 121.5    | 134.4             |
+| Alternate | 81.7      | 134.4     | 57.2     | 121.5    | 134.4             |
 
 | Design    | Min. period (ps) | Max. frequency (GHz) | Power (mW) |
 | --------- | ---------------- | -------------------- | ---------- |
 | Baseline  | 250              | 4.00                 | 0.713      |
-| Optimized | 255              | 3.92                 | 0.805      |
+| Alternate | 255              | 3.92                 | 0.805      |
 
 | Design    | Cell widths (nm)             | Array area (μm²) |
 | --------- | ---------------------------- | ---------------- |
 | Baseline  | PU 120 · ACC 240 · PD 960    | 7.60             |
-| Optimized | PU 120 · ACC 120 · PD 120    | 2.07 (−73%)      |
+| Alternate | PU 120 · ACC 120 · PD 120    | 2.07 (−73%)      |
 
-The optimized design's worst-case access time is ~9% faster, while the maximum clock frequency is essentially unchanged (~4 GHz) and average power is 13% higher.
+The alternate design's worst-case access time is ~9% faster, maximum clock frequency is essentially unchanged (~4 GHz), and average power is 13% higher. The source of the power increase was not isolated.
 
 <details>
 <summary><b>Measurement waveforms</b></summary>
@@ -182,18 +184,18 @@ The optimized design's worst-case access time is ~9% faster, while the maximum c
 | --- | --- |
 | ![Force 1](images/baseline-force-1.png) | ![Force 0](images/baseline-force-0.png) |
 
-**Optimized write access (low→high, high→low)**
+**Alternate write access (low→high, high→low)**
 
 ![Optimized write LH](images/optimized-write-lh.png)
 ![Optimized write HL](images/optimized-write-hl.png)
 
-**Data-bus forcing circuits (optimized)**
+**Data-bus forcing circuits (alternate)**
 
 | Force '1' | Force '0' |
 | --- | --- |
 | ![Force 1](images/optimized-force-1.png) | ![Force 0](images/optimized-force-0.png) |
 
-**Optimized read access ('0', '1')**
+**Alternate read access ('0', '1')**
 
 ![Optimized read 0](images/optimized-read-0.png)
 ![Optimized read 1](images/optimized-read-1.png)
@@ -203,7 +205,7 @@ The optimized design's worst-case access time is ~9% faster, while the maximum c
 ![Baseline period sweep](images/baseline-period-sweep.png)
 ![Baseline period verification](images/baseline-period-verify.png)
 
-**Supply current during successive writes (baseline, optimized)**
+**Supply current during successive writes (baseline, alternate)**
 
 ![Baseline write current](images/baseline-write-current.png)
 ![Optimized write current](images/optimized-write-current.png)
@@ -212,12 +214,18 @@ The optimized design's worst-case access time is ~9% faster, while the maximum c
 
 ---
 
-## Takeaways
+## Limitations
 
-1. **Area dominates the FOM.** The 73% area reduction outweighs the 13% power increase and 2% longer clock period.
-2. **VDD/2 precharge is what enables the area win.** Lower read-disturb stress is what makes minimum-sized cells viable.
-3. **Sensing is a tradeoff.** The OTA sense amplifier improves read sensitivity and worst-case access time but adds bias current.
-4. **Co-optimize the cell and the periphery.** The biggest gains came from changing the peripheral circuits so the cell itself could shrink.
+- **The comparison changes several variables at once.** The area reduction comes from moving the baseline's conservative sizing (8× pull-down, 2× access) to minimum-sized cells. Minimum-sized cells were never tested with the baseline's full-VDD precharge and tri-state buffers, so the contribution of the VDD/2 precharge and sense amplifier to the FOM is not isolated. The baseline cells may have been larger than necessary.
+- **Area covers the cell array only.** The sense amplifiers and VDD/2 reference generator add peripheral area that the FOM does not count.
+- **Cell stability was checked functionally only.** Minimum-sized cells passed functional simulation, but no static noise margin (SNM) or read/write margin analysis was performed, and results are from a single operating condition.
+- **The power increase was not broken down** by block.
+
+## What this project demonstrates
+
+- Transistor-level design of a complete synchronous SRAM: cell, dynamic decoder, non-overlapping clocking, precharge, write drivers, and sense amplifier
+- Systematic verification of every block and of the full array
+- Careful timing measurement: write/read access times, worst-case read setup, and minimum clock period found by parametric sweep rather than inferred from access delay
 
 ---
 
